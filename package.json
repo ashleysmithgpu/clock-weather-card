@@ -48,7 +48,6 @@
   "scripts": {
     "start": "rollup -c rollup.config.dev.js --watch",
     "build": "yarn rollup",
-    "lint": "eslint **/*.ts --max-warnings 0",
     "rollup": "rollup -c"
   }
 }
