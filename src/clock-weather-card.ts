@@ -604,7 +604,8 @@ export class ClockWeatherCard extends LitElement {
 
   private mergeForecasts (maxRowsCount: number, hourly: boolean): MergedWeatherForecast[] {
 //    const forecasts = this.isLegacyWeather() ? this.getWeather().attributes.forecast ?? [] : this.forecasts ?? []
-    const agg = this.forecastsDaily.reduce<Record<number, WeatherForecast[]>>((forecasts, forecast) => {
+    const forecasts = this.forecastsDaily ?? []
+    const agg = forecasts.reduce<Record<number, WeatherForecast[]>>((forecasts, forecast) => {
       const d = new Date(forecast.datetime)
       const unit = `${d.getMonth()}-${d.getDate()}-${+d.getHours()}`
       forecasts[unit] = forecasts[unit] || []
@@ -613,7 +614,7 @@ export class ClockWeatherCard extends LitElement {
     }, {})
 
 	let merged = Object.values(agg)
-    .map(forecasts => this.calculateAverageForecast(this.forecastsDaily))
+    .map(_forecasts => this.calculateAverageForecast(forecasts))
     .sort((a, b) => a.datetime.toMillis() - b.datetime.toMillis());
 
 	if (!hourly && this.forecastsHourly && merged.length > 0) {
