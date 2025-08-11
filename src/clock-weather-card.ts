@@ -67,7 +67,8 @@ export class ClockWeatherCard extends LitElement {
   @state() private currentDate!: DateTime
   @state() private forecasts?: WeatherForecast[]
   @state() private error?: TemplateResult
-  private forecastSubscriber?: () => Promise<void>
+  private forecastSubscriberDaily?: () => Promise<void>
+  private forecastSubscriberHourly?: () => Promise<void>
   private forecastSubscriberLock = false
 
   constructor () {
@@ -201,7 +202,7 @@ export class ClockWeatherCard extends LitElement {
 
   protected willUpdate (changedProps: PropertyValues): void {
     super.willUpdate(changedProps)
-    if (!this.forecastSubscriber) {
+    if (!this.forecastSubscriberDaily! || this.forecastSubscriberHourly) {
       void this.subscribeForecastEvents()
     }
   }
@@ -604,11 +605,20 @@ export class ClockWeatherCard extends LitElement {
     const forecasts = this.isLegacyWeather() ? this.getWeather().attributes.forecast ?? [] : this.forecasts ?? []
     const agg = forecasts.reduce<Record<number, WeatherForecast[]>>((forecasts, forecast) => {
       const d = new Date(forecast.datetime)
-      const unit = hourly ? `${d.getMonth()}-${d.getDate()}-${+d.getHours()}` : d.getDate()
+      const unit = d.getDate()
+      //const unit = hourly ? `${d.getMonth()}-${d.getDate()}-${+d.getHours()}` : d.getDate()
       forecasts[unit] = forecasts[unit] || []
       forecasts[unit].push(forecast)
       return forecasts
     }, {})
+
+
+	for (const [key, value] of agg) {
+
+		console.info("key " + key + " value " + value);
+		break;
+	}
+
 
     return Object.values(agg)
       .reduce((agg: MergedWeatherForecast[], forecasts) => {
@@ -666,7 +676,8 @@ export class ClockWeatherCard extends LitElement {
     this.forecastSubscriberLock = true
     await this.unsubscribeForecastEvents()
     if (this.isLegacyWeather()) {
-      this.forecastSubscriber = async () => {}
+      this.forecastSubscriberDaily = async () => {}
+      this.forecastSubscriberHourly = async () => {}
       this.forecastSubscriberLock = false
       return
     }
@@ -676,9 +687,13 @@ export class ClockWeatherCard extends LitElement {
       return
     }
 
+    const supportsDaily = this.supportsFeature(WeatherEntityFeature.FORECAST_DAILY)
+    const supportsHourly = this.supportsFeature(WeatherEntityFeature.FORECAST_HOURLY)
+
     const forecastType = this.determineForecastType()
     if (forecastType === 'hourly_not_supported') {
-      this.forecastSubscriber = async () => {}
+      this.forecastSubscriberHourly = async () => {}
+      this.forecastSubscriberDaily = async () => {}
       this.forecastSubscriberLock = false
       throw this.createError(`Weather entity [${this.config.entity}] does not support hourly forecast.`)
     }
@@ -687,12 +702,22 @@ export class ClockWeatherCard extends LitElement {
         this.forecasts = event.forecast
       }
       const options = { resubscribe: false }
-      const message = {
-        type: 'weather/subscribe_forecast',
-        forecast_type: forecastType,
-        entity_id: this.config.entity
-      }
-      this.forecastSubscriber = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callback, message, options)
+	  if (supportsDaily) {
+		  const message = {
+			type: 'weather/subscribe_forecast',
+			forecast_type: 'daily',
+			entity_id: this.config.entity
+		  }
+		  this.forecastSubscriberDaily = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callback, message, options)
+	  }
+	  if (supportsHourly) {
+		  const message = {
+			type: 'weather/subscribe_forecast',
+			forecast_type: 'hourly',
+			entity_id: this.config.entity
+		  }
+		  this.forecastSubscriberHourly = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callback, message, options)
+	  }
     } catch (e: unknown) {
       console.error('clock-weather-card - Error when subscribing to weather forecast', e)
     } finally {
@@ -701,13 +726,22 @@ export class ClockWeatherCard extends LitElement {
   }
 
   private async unsubscribeForecastEvents (): Promise<void> {
-    if (this.forecastSubscriber) {
+    if (this.forecastSubscriberHourly) {
       try {
-        await this.forecastSubscriber()
+        await this.forecastSubscriberHourly()
       } catch (e: unknown) {
         // swallow error, as this means that connection was closed already
       } finally {
-        this.forecastSubscriber = undefined
+        this.forecastSubscriberHourly = undefined
+      }
+    }
+    if (this.forecastSubscriberDaily) {
+      try {
+        await this.forecastSubscriberDaily()
+      } catch (e: unknown) {
+        // swallow error, as this means that connection was closed already
+      } finally {
+        this.forecastSubscriberDaily = undefined
       }
     }
   }
