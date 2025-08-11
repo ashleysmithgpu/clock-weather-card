@@ -639,7 +639,7 @@ export class ClockWeatherCard extends LitElement {
 				condition,
 				temperature: max(temperatures),
 				precipitation: max(precipitations),
-				precipitation_probability: max(precipProbs)
+				precipitation_probability: max(precipProbs),
 				templow: min(temperatures),
 			  };
 
