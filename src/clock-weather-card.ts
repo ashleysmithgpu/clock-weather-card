@@ -604,7 +604,7 @@ export class ClockWeatherCard extends LitElement {
 
   private mergeForecasts (maxRowsCount: number, hourly: boolean): MergedWeatherForecast[] {
 //    const forecasts = this.isLegacyWeather() ? this.getWeather().attributes.forecast ?? [] : this.forecasts ?? []
-    const agg = forecastsDaily.reduce<Record<number, WeatherForecast[]>>((forecasts, forecast) => {
+    const agg = this.forecastsDaily.reduce<Record<number, WeatherForecast[]>>((forecasts, forecast) => {
       const d = new Date(forecast.datetime)
       const unit = `${d.getMonth()}-${d.getDate()}-${+d.getHours()}`
       forecasts[unit] = forecasts[unit] || []
@@ -613,7 +613,7 @@ export class ClockWeatherCard extends LitElement {
     }, {})
 
 	let merged = Object.values(agg)
-    .map(forecasts => this.calculateAverageForecast(forecasts))
+    .map(forecasts => this.calculateAverageForecast(this.forecastsDaily))
     .sort((a, b) => a.datetime.toMillis() - b.datetime.toMillis());
 
 	if (!hourly && this.forecastsHourly && merged.length > 0) {
@@ -631,7 +631,6 @@ export class ClockWeatherCard extends LitElement {
 			  const conditions = todayHourlyForecasts.map(f => f.condition);
 			  const condition = extractMostOccuring(conditions);
 			  const temperatures = todayHourlyForecasts.map(f => f.temperature).filter((t): t is number => t !== null);
-			  const humidities = todayHourlyForecasts.map(f => f.humidity).filter((h): h is number => h !== null);
 			  const precipitations = todayHourlyForecasts.map(f => f.precipitation).filter((p): p is number => p !== null);
 			  const precipProbs = todayHourlyForecasts.map(f => f.precipitation_probability).filter((p): p is number => p !== null);
 
@@ -639,10 +638,9 @@ export class ClockWeatherCard extends LitElement {
 				datetime: today,
 				condition,
 				temperature: max(temperatures),
-				templow: min(temperatures),
-				humidity: round(humidities.length > 0 ? humidities.reduce((a, b) => a + b, 0) / humidities.length : null),
 				precipitation: max(precipitations),
 				precipitation_probability: max(precipProbs)
+				templow: min(temperatures),
 			  };
 
 			  // Replace first item or insert at start
