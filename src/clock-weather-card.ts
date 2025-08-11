@@ -203,7 +203,7 @@ export class ClockWeatherCard extends LitElement {
 
   protected willUpdate (changedProps: PropertyValues): void {
     super.willUpdate(changedProps)
-    if (!this.forecastSubscriber) {
+    if (!this.forecastSubscriberHourly || !this.forecastSubscriberDaily) {
       void this.subscribeForecastEvents()
     }
   }
@@ -714,8 +714,8 @@ export class ClockWeatherCard extends LitElement {
 
     const forecastType = this.determineForecastType()
     if (forecastType === 'hourly_not_supported') {
-      this.forecastSubscriber = async () => {}
-      this.forecastSubscriber = async () => {}
+      this.forecastSubscriberHourly = async () => {}
+      this.forecastSubscriberDaily = async () => {}
       this.forecastSubscriberLock = false
       throw this.createError(`Weather entity [${this.config.entity}] does not support hourly forecast.`)
     }
@@ -747,16 +747,18 @@ export class ClockWeatherCard extends LitElement {
   }
 
   private async unsubscribeForecastEvents (): Promise<void> {
-    if (this.forecastSubscriber) {
 	  const promises = [];
+    if (this.forecastSubscriberDaily) {
       promises.push( this.forecastSubscriberDaily().catch(() => {/* ignore */}).finally(() => {
 			this.forecastSubscriberDaily = undefined;
 		  }));
+	}
+    if (this.forecastSubscriberHourly) {
       promises.push( this.forecastSubscriberHourly().catch(() => {/* ignore */}).finally(() => {
 			this.forecastSubscriberHourly = undefined;
 		  }));
-      await Promise.all(promises);
     }
+      await Promise.all(promises);
   }
 
   private isLegacyWeather (): boolean {
