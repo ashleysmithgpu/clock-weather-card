@@ -730,13 +730,13 @@ export class ClockWeatherCard extends LitElement {
         forecast_type: 'daily',
         entity_id: this.config.entity
       }
-      this.forecastSubscriberDaily = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callbackDaily, message, options)
+      this.forecastSubscriberDaily = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callbackDaily, messageDaily, options)
       const messageHourly = {
         type: 'weather/subscribe_forecast',
         forecast_type: 'hourly',
         entity_id: this.config.entity
       }
-      this.forecastSubscriberHourly = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callbackHourly, message, options)
+      this.forecastSubscriberHourly = await this.hass.connection.subscribeMessage<WeatherForecastEvent>(callbackHourly, messageHourly, options)
     } catch (e: unknown) {
       console.error('clock-weather-card - Error when subscribing to weather forecast', e)
     } finally {
@@ -745,18 +745,33 @@ export class ClockWeatherCard extends LitElement {
   }
 
   private async unsubscribeForecastEvents (): Promise<void> {
-	  const promises = [];
-    if (this.forecastSubscriberDaily) {
-      promises.push( this.forecastSubscriberDaily().catch(() => {/* ignore */}).finally(() => {
-			this.forecastSubscriberDaily = undefined;
-		  }));
-	}
-    if (this.forecastSubscriberHourly) {
-      promises.push( this.forecastSubscriberHourly().catch(() => {/* ignore */}).finally(() => {
-			this.forecastSubscriberHourly = undefined;
-		  }));
-    }
-      await Promise.all(promises);
+  const promises: Promise<void>[] = [];
+
+  if (this.forecastSubscriberDaily) {
+    const p = this.forecastSubscriberDaily()
+      .then(
+        () => {},
+        () => {}
+      )
+      .then(() => {
+        this.forecastSubscriberDaily = undefined;
+      });
+    promises.push(p);
+  }
+
+  if (this.forecastSubscriberHourly) {
+    const p = this.forecastSubscriberHourly()
+      .then(
+        () => {},
+        () => {}
+      )
+      .then(() => {
+        this.forecastSubscriberHourly = undefined;
+      });
+    promises.push(p);
+  }
+
+  await Promise.all(promises);
   }
 
   private isLegacyWeather (): boolean {
